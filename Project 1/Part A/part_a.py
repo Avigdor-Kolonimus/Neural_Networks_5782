@@ -144,7 +144,7 @@ if __name__ == "__main__":
     plt.ylabel('Y')
     plt.legend(loc='upper left')
     figure_one.show()
-    input()
+    input("Enter any char to continue: ")
 
     figure_two = plt.figure(2)
     datasetIllustration(X_test, y_test)
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     plt.ylabel('Y')
     plt.legend(loc='upper left')
     figure_two.show()
-    input()
+    input("Enter any char to continue: ")
 
     # start algorithm
     aln_clf = ADAptiveLInearNEuron(n_iter=3)
@@ -171,9 +171,9 @@ if __name__ == "__main__":
     heatmap = sns.heatmap(cf_matrix, annot=True, cmap='Blues', fmt='g', xticklabels=np.unique(y_test), yticklabels=np.unique(y_test))
     plt.title('Heatmap')
     figure_three.show()
-    input()
+    input("Enter any char to continue: ")
 
     figure_four = plt.figure(4)
     fig = plot_decision_regions(X=X_test, y=y_test, clf=aln_clf, legend=2)
     figure_four.show()
-    input()
+    input("Enter any char to finish: ")
