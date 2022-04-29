@@ -61,40 +61,67 @@ def datasetIllustration(X, y, show_circle=False, resolution=0.02):
         plt.gca().add_patch(circle4)
         plt.gca().add_patch(circle9)
 
-class CustomAdaline(object):
-	"""ADAptive LInear NEuron classifier.
+class ADAptiveLInearNEuron(object):
+	"""
+    ADALINE classifier.
 	Parameters
 	-----------
-	eta  - learning rate (between 0.0 and 1.0)
-	n_iter - passes over the training dataset.
+	eta  - learning rate (between 0.0 and 1.0). The default value is 0.01.
+	n_iter - the actual number of iterations before reaching the stopping criterion. The default value is 15.
 	"""
-	def __init__(self, eta = 0.01, n_iter = 50):
+	def __init__(self, eta = 0.01, n_iter = 15):
 		self.eta = eta
 		self.n_iter = n_iter
 
 	def fit(self, X, y):
-		""" Fit training data.
-		Parameters
+		""" 
+        Fit training data (Gradient Descent).
+		
+        Parameters
 		-----------
-		X - training vectors
+		X - training data.
 		y - target values.
+
+        Attributes
+        -----------
+        weights - the weight vector.
+        errors - number of misclassifications in every epoch.
+
+        Returns
+        -----------
+        Returns an instance of self.
 		"""
 
 		self.weights = np.zeros(1 + X.shape[1])
-		self.cost = []
 
-		for i in range(self.n_iter):
-			output = self.net_input(X)
-			errors = (y - output)
+		for _ in range(self.n_iter):
+			output_model = self.net_input(X)
+			errors = (y - output_model)
+            
+            # update rule
 			self.weights[1:] += self.eta * X.T.dot(errors)
 			self.weights[0] += self.eta * errors.sum()
-			cost = (errors ** 2).sum() / 2.0
-			self.cost.append(cost)
 
 		return self
 
 	def net_input(self, X):
-		""" Calculate net input """
+		""" 
+        Calculate net input, sum of weighted input signals.
+        y = SUM(X*w) + theta  [https://en.wikipedia.org/wiki/ADALINE]
+
+        Parameters
+        -----------
+        X - the input vector.
+
+        Attributes
+        -----------
+        weights - the weight vector.
+        weights[0] (theta) - some constant.
+
+        Returns
+        -----------
+        Return the output of the model.
+        """
 		return np.dot(X, self.weights[1:]) + self.weights[0]
 
 	def activation(self, X):
@@ -168,7 +195,7 @@ if __name__ == "__main__":
 
 
     # start algorithm
-    aln_clf = CustomAdaline(eta = 0.01, n_iter = 15)
+    aln_clf = ADAptiveLInearNEuron(eta = 0.01, n_iter = 15)
     aln_clf.fit(X_train, y_train)
 
     aln_predictions = aln_clf.predict(X_test)
