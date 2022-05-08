@@ -321,26 +321,16 @@ if __name__ == "__main__":
 
     data = []
     for row in dataset_train:
-        outputs = forward_propagate(network, row)
-        if (row[2]==1):
-            data.append([int(outputs[0]*100), int(outputs[1]*100), 1])
-        else:
-            data.append([int(outputs[0]*100), int(outputs[1]*100), -1])
-
-    df_train_backpropagation = pd.DataFrame(data, columns = ['x', 'y', 'label'])
-    df_train_backpropagation.to_csv('out_train_backpropagation.csv', index=False)  
+        outputs,pre_input = forward_propagate(network, row)
+        data_train_x.append(pre_input)
+        data_train_y.append(1 if row[2] == 1 else -1)
 
     data = []
     for row in dataset_test:
-        outputs = forward_propagate(network, row)
-        if (row[2]==1):
-            data.append([int(outputs[0]*100), int(outputs[1]*100), 1])
-        else:
-            data.append([int(outputs[0]*100), int(outputs[1]*100), -1])
-
-
-    df_test_backpropagation = pd.DataFrame(data, columns = ['x', 'y', 'label'])
-    df_test_backpropagation.to_csv('out_test_backpropagation.csv', index=False)  
+        outputs,pre_input = forward_propagate(network, row)
+        data_test_x.append(pre_input)
+        data_test_y.append(1 if row[2] == 1 else -1)
+        X_test_row.append([outputs[0],outputs[1]])
 
     X_train = np.stack([df_train_backpropagation['x'], df_train_backpropagation['y']]).T
     y_train = np.stack(df_train_backpropagation['label'])
