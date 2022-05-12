@@ -4,10 +4,9 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from random import seed
 from math import exp
 from matplotlib.colors import ListedColormap
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from mlxtend.plotting import plot_decision_regions
 
@@ -123,22 +122,25 @@ def update_weights(network, row, l_rate):
 
 # Train a network for a fixed number of epochs
 def train_network(network, train, l_rate, n_epoch, n_outputs):
-	for epoch in range(n_epoch):
+	for _ in range(n_epoch):
 		for row in train:
-			outputs = forward_propagate(network, row)
-			expected = [0 for i in range(n_outputs)]
+			_ = forward_propagate(network, row)
+			expected = [0 for _ in range(n_outputs)]
 			expected[int(row[-1])] = 1
 			backward_propagate_error(network, expected)
 			update_weights(network, row, l_rate)
 
 # Initialize a network
 def initialize_network(n_inputs, n_hidden, n_outputs):
-	network = list()
-	hidden_layer = [{'weights':[random.random() for i in range(n_inputs + 1)]} for i in range(n_hidden)]
-	network.append(hidden_layer)
-	output_layer = [{'weights':[random.random() for i in range(n_hidden + 1)]} for i in range(n_outputs)]
-	network.append(output_layer)
-	return network
+    network = list()
+    n_hidden2 = n_hidden * 2
+    hidden_layer1 = [{'weights':[random.random() for i in range(n_inputs + 1)]} for i in range(n_hidden)]
+    network.append(hidden_layer1)
+    hidden_layer2 = [{'weights':[random.random() for i in range(n_hidden + 1)]} for i in range(n_hidden2)]
+    network.append(hidden_layer2)
+    output_layer = [{'weights':[random.random() for i in range(n_hidden2 + 1)]} for i in range(n_outputs)]
+    network.append(output_layer)
+    return network
 
 # Make a prediction with a network
 def predict(network, row):
@@ -156,6 +158,7 @@ def back_propagation(train, test, l_rate, n_epoch, n_hidden):
 		prediction = predict(network, row)
 		predictions.append(prediction)
 	return(predictions)
+
 class ADAptiveLInearNEuron(object):
 	"""
     ADALINE classifier.
@@ -228,7 +231,7 @@ class ADAptiveLInearNEuron(object):
 		return np.where(self.activation(X) >= 0.0, 1, -1)
 
 if __name__ == "__main__":
-    seed(1)
+    random.seed(1)
     # generate dataset for train and test
     train_data = generateDataset()
     test_data = generateDataset()
@@ -290,7 +293,7 @@ if __name__ == "__main__":
     input("Enter any char to continue: ")
 
     # normalize input variables
-    scaler = MinMaxScaler()
+    scaler = StandardScaler()
     df_train[['x', 'y']] = scaler.fit_transform(df_train[['x', 'y']])
     df_test[['x', 'y']] = scaler.fit_transform(df_test[['x', 'y']])
 
@@ -303,53 +306,45 @@ if __name__ == "__main__":
     y_test = np.stack(df_test['label_2'])
 
     # evaluate algorithm
-    l_rate = 0.3
-    n_epoch = 500
-    n_hidden = 8
+    l_rate = 0.1
+    n_epoch = 5000
+    n_hidden = 4
     n_inputs = 2
     n_outputs = 2
 
     # Backpropagation Algorithm
     network = initialize_network(n_inputs, n_hidden, n_outputs)
     train_network(network, dataset_train, l_rate, n_epoch, n_outputs)
-    print("network", network)
-
-    predictions = list()
-    for row in dataset_test:
-        prediction = predict(network, row)
-        predictions.append(prediction)
-
+    
+    
     data = []
     for row in dataset_train:
         outputs = forward_propagate(network, row)
-        if (row[2]==1):
-            data.append([int(outputs[0]*100), int(outputs[1]*100), 1])
-        else:
-            data.append([int(outputs[0]*100), int(outputs[1]*100), -1])
+        data.append([outputs[0], outputs[1], 1 if row[2] == 1 else -1])
 
-    df_train_backpropagation = pd.DataFrame(data, columns = ['x', 'y', 'label'])
+    df_train_backpropagation = pd.DataFrame(data, columns = ['node_1', 'node_2', 'label'])
     df_train_backpropagation.to_csv('out_train_backpropagation.csv', index=False)  
 
     data = []
     for row in dataset_test:
         outputs = forward_propagate(network, row)
-        if (row[2]==1):
-            data.append([int(outputs[0]*100), int(outputs[1]*100), 1])
-        else:
-            data.append([int(outputs[0]*100), int(outputs[1]*100), -1])
+        data.append([outputs[0], outputs[1], 1 if row[2] == 1 else -1])
 
 
-    df_test_backpropagation = pd.DataFrame(data, columns = ['x', 'y', 'label'])
+    df_test_backpropagation = pd.DataFrame(data, columns = ['node_1', 'node_2', 'label'])
     df_test_backpropagation.to_csv('out_test_backpropagation.csv', index=False)  
 
-    X_train = np.stack([df_train_backpropagation['x'], df_train_backpropagation['y']]).T
+    df_train_backpropagation[['node_1', 'node_2']] = scaler.fit_transform(df_train_backpropagation[['node_1', 'node_2']])
+    df_test_backpropagation[['node_1', 'node_2']] = scaler.fit_transform(df_test_backpropagation[['node_1', 'node_2']])
+
+    X_train = np.stack([df_train_backpropagation['node_1'], df_train_backpropagation['node_2']]).T
     y_train = np.stack(df_train_backpropagation['label'])
 
-    X_test = np.stack([df_test_backpropagation['x'], df_test_backpropagation['y']]).T
+    X_test = np.stack([df_test_backpropagation['node_1'], df_test_backpropagation['node_2']]).T
     y_test = np.stack(df_test_backpropagation['label'])
 
     # start algorithm
-    aln_clf = ADAptiveLInearNEuron(eta = 0.01, n_iter = 15)
+    aln_clf = ADAptiveLInearNEuron(eta = 0.1, n_iter = 25)
     aln_clf.fit(X_train, y_train)
 
     aln_predictions = aln_clf.predict(X_test)

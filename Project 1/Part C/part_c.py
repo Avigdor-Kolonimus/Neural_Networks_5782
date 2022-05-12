@@ -4,12 +4,10 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from random import seed
 from math import exp
 from matplotlib.colors import ListedColormap
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-from mlxtend.plotting import plot_decision_regions
 
 max_limit = 10000
 min_limit = -10000
@@ -133,12 +131,15 @@ def train_network(network, train, l_rate, n_epoch, n_outputs):
 
 # Initialize a network
 def initialize_network(n_inputs, n_hidden, n_outputs):
-	network = list()
-	hidden_layer = [{'weights':[random.random() for i in range(n_inputs + 1)]} for i in range(n_hidden)]
-	network.append(hidden_layer)
-	output_layer = [{'weights':[random.random() for i in range(n_hidden + 1)]} for i in range(n_outputs)]
-	network.append(output_layer)
-	return network
+    network = list()
+    n_hidden2 = n_hidden * 2
+    hidden_layer1 = [{'weights':[random.random() for i in range(n_inputs + 1)]} for i in range(n_hidden)]
+    network.append(hidden_layer1)
+    hidden_layer2 = [{'weights':[random.random() for i in range(n_hidden + 1)]} for i in range(n_hidden2)]
+    network.append(hidden_layer2)
+    output_layer = [{'weights':[random.random() for i in range(n_hidden2 + 1)]} for i in range(n_outputs)]
+    network.append(output_layer)
+    return network
 
 # Make a prediction with a network
 def predict(network, row):
@@ -158,7 +159,7 @@ def back_propagation(train, test, l_rate, n_epoch, n_hidden):
 	return(predictions)
 
 if __name__ == "__main__":
-    seed(1)
+    random.seed(1)
     # generate dataset for train and test
     train_data = generateDataset()
     test_data = generateDataset()
@@ -220,7 +221,7 @@ if __name__ == "__main__":
     input("Enter any char to continue: ")
 
     # normalize input variables
-    scaler = MinMaxScaler()
+    scaler = StandardScaler()
     df_train[['x', 'y']] = scaler.fit_transform(df_train[['x', 'y']])
     df_test[['x', 'y']] = scaler.fit_transform(df_test[['x', 'y']])
 
@@ -233,16 +234,15 @@ if __name__ == "__main__":
     y_test = np.stack(df_test['label_2'])
 
     # evaluate algorithm
-    l_rate = 0.3
-    n_epoch = 500
-    n_hidden = 8
+    l_rate = 0.1
+    n_epoch = 5000
+    n_hidden = 4
     n_inputs = 2
     n_outputs = 2
 
     # Backpropagation Algorithm
     network = initialize_network(n_inputs, n_hidden, n_outputs)
     train_network(network, dataset_train, l_rate, n_epoch, n_outputs)
-    print("network", network)
 
     predictions = list()
     for row in dataset_test:
@@ -253,7 +253,6 @@ if __name__ == "__main__":
     accuracy = accuracy_score(y_test, predictions)
     print("accuracy score: {0:.2f}%".format(accuracy*100))
     print(classification_report(y_test, predictions))
-
 
     reps = {1: 1, 0: -1}
     y_test = [reps.get(x,x) for x in y_test]
