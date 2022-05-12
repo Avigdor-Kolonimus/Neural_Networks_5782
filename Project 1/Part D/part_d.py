@@ -76,15 +76,17 @@ def transfer(activation):
 
 # Forward propagate input to a network output
 def forward_propagate(network, row):
-	inputs = row
-	for layer in network:
-		new_inputs = []
-		for neuron in layer:
-			activation = activate(neuron['weights'], inputs)
-			neuron['output'] = transfer(activation)
-			new_inputs.append(neuron['output'])
-		inputs = new_inputs
-	return inputs
+    inputs = row
+    pre_input = []
+    for layer in network:
+        new_inputs = []
+        for neuron in layer:
+            activation = activate(neuron['weights'], inputs)
+            neuron['output'] = transfer(activation)
+            new_inputs.append(neuron['output'])
+        pre_input = inputs
+        inputs = new_inputs
+    return inputs, pre_input
 
 # Calculate the derivative of an neuron output
 def transfer_derivative(output):
@@ -124,7 +126,7 @@ def update_weights(network, row, l_rate):
 def train_network(network, train, l_rate, n_epoch, n_outputs):
 	for _ in range(n_epoch):
 		for row in train:
-			_ = forward_propagate(network, row)
+			_, _ = forward_propagate(network, row)
 			expected = [0 for _ in range(n_outputs)]
 			expected[int(row[-1])] = 1
 			backward_propagate_error(network, expected)
@@ -138,13 +140,15 @@ def initialize_network(n_inputs, n_hidden, n_outputs):
     network.append(hidden_layer1)
     hidden_layer2 = [{'weights':[random.random() for i in range(n_hidden + 1)]} for i in range(n_hidden2)]
     network.append(hidden_layer2)
-    output_layer = [{'weights':[random.random() for i in range(n_hidden2 + 1)]} for i in range(n_outputs)]
+    hidden_layer_pre_output = [{'weights':[random.random() for i in range(n_hidden2 + 1)]} for i in range(n_outputs)]
+    network.append(hidden_layer_pre_output)
+    output_layer = [{'weights':[random.random() for i in range(n_outputs + 1)]} for i in range(n_outputs)]
     network.append(output_layer)
     return network
 
 # Make a prediction with a network
 def predict(network, row):
-	outputs = forward_propagate(network, row)
+	outputs, _ = forward_propagate(network, row)
 	return outputs.index(max(outputs))
 
 # Backpropagation Algorithm With Stochastic Gradient Descent
@@ -316,19 +320,18 @@ if __name__ == "__main__":
     network = initialize_network(n_inputs, n_hidden, n_outputs)
     train_network(network, dataset_train, l_rate, n_epoch, n_outputs)
     
-    
     data = []
     for row in dataset_train:
-        outputs = forward_propagate(network, row)
-        data.append([outputs[0], outputs[1], 1 if row[2] == 1 else -1])
+        _, pre_input = forward_propagate(network, row)
+        data.append([pre_input[0], pre_input[1], 1 if row[2] == 1 else -1])
 
     df_train_backpropagation = pd.DataFrame(data, columns = ['node_1', 'node_2', 'label'])
     df_train_backpropagation.to_csv('out_train_backpropagation.csv', index=False)  
 
     data = []
     for row in dataset_test:
-        outputs = forward_propagate(network, row)
-        data.append([outputs[0], outputs[1], 1 if row[2] == 1 else -1])
+        _, pre_input = forward_propagate(network, row)
+        data.append([pre_input[0], pre_input[1], 1 if row[2] == 1 else -1])
 
 
     df_test_backpropagation = pd.DataFrame(data, columns = ['node_1', 'node_2', 'label'])
