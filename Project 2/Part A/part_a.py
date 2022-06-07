@@ -15,6 +15,7 @@ LOWER_BOUND = 0
 UPPER_BOUND = 1
 LOWER_RADIUS = 2
 UPPER_RADIUS = 4
+iterations = 10000
 
 NEURON_COLOR = '#1c34d1'
 POINT_COLOR = '#1cd1cb'
@@ -59,7 +60,7 @@ class Node:
         self.adjacent = adjacent
 
 class KohonenAlgorithm:
-    def __init__(self, set=NEURONS_SET, lowerBound=LOWER_BOUND, upperBound=UPPER_BOUND, learning_rate=0.5, scaling_constant=1e2, sigma=10, shape="Line", border=0, circleShape=0):
+    def __init__(self, set=NEURONS_SET, lowerBound=LOWER_BOUND, upperBound=UPPER_BOUND, learning_rate=1, scaling_constant=iterations * 2, sigma=10, shape="Line", border=0, circleShape=0):
         if shape == "Line" or shape == "Circle":
             self.neurons = generateLine(set, lowerBound, upperBound)
         else:
@@ -103,7 +104,7 @@ class KohonenAlgorithm:
             self.moveNeurons(data[chosenIndex], bmuIndex, iter_count, radius)
             
             iter_count += 1
-            if iter_count % 500 == 0:
+            if iter_count % (iterations / 10) == 0:
                 self.drow(data, title + " Iter: " + str(iter_count), chosenIndex=chosenIndex, bmuIndex=bmuIndex, border=self.border, circleShape=self.circleShape)
 
         if self.shape == "Line" or self.shape == "Circle": 
@@ -588,13 +589,11 @@ def main():
     
     # 2500 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Line", border=0, circleShape=0)
-    iterations = 2500
     somSquare.train(points, iterations, "Line Topology - Uniform Data", uniform=0)
     
     # ------------------------------------------------------- 10x10 Topology -------------------------------------------------------
     # 2500 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Matrix")
-    iterations = 2500
     somSquare.train(points, iterations, "10x10 Topology - Uniform Data", uniform=0)
 
     # Part A.2
@@ -604,23 +603,19 @@ def main():
     
     # 2500 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Line", border=0, circleShape=0)
-    iterations = 2500
     somSquare.train(points, iterations, "Line Topology - Non-uniform Data (type 1)", uniform=1)
 
     # 2500 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Line", border=0, circleShape=0)
-    iterations = 2500
     somSquare.train(points, iterations, "Line Topology - Non-uniform Data (type 2)", uniform=2)
     
     # ------------------------------------------------------- 10x10 Topology -------------------------------------------------------
     # 2500 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Matrix")
-    iterations = 2500
     somSquare.train(points, iterations, "10x10 Topology - Non-uniform (type 1)", uniform=1)
 
     # 2500 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Matrix")
-    iterations = 2500
     somSquare.train(points, iterations, "10x10 Topology - Non-uniform (type 2)", uniform=2)
     # Part A.3
     # ------------------------------------------------------- Circle Topology ------------------------------------------------------
@@ -628,7 +623,6 @@ def main():
     
     # 2500 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SMALL_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Circle", border=1, circleShape=1)
-    iterations = 2500
     somSquare.train(points, iterations, "Circle Topology - Uniform Data", uniform=0)
 
 
