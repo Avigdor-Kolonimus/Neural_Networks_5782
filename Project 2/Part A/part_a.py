@@ -9,12 +9,12 @@ NEURONS_SET = 100
 NEURONS_SMALL_SET = 30
 DATA_SET = 300
 LAST_ITERATION = 1
-DEFAULT_ITERATIONS = 10
 MAXSIZE = sys.maxsize
 LOWER_BOUND = 0
 UPPER_BOUND = 1
 LOWER_RADIUS = 2
 UPPER_RADIUS = 4
+LIST_PRINT = [100, 2000, 10000, 15000, 25000]
 
 NEURON_COLOR = '#1c34d1'
 POINT_COLOR = '#1cd1cb'
@@ -59,7 +59,7 @@ class Node:
         self.adjacent = adjacent
 
 class KohonenAlgorithm:
-    def __init__(self, set=NEURONS_SET, lowerBound=LOWER_BOUND, upperBound=UPPER_BOUND, learning_rate=0.5, scaling_constant=1e2, sigma=10, shape="Line", border=0, circleShape=0):
+    def __init__(self, set=NEURONS_SET, lowerBound=LOWER_BOUND, upperBound=UPPER_BOUND, learning_rate=.5, neighborhood_distance=3, shape="Line", border=0, circleShape=0):
         if shape == "Line" or shape == "Circle":
             self.neurons = generateLine(set, lowerBound, upperBound)
         else:
@@ -68,48 +68,33 @@ class KohonenAlgorithm:
         self.shape = shape
         self.border = border
         self.circleShape = circleShape
-        self.L0 = learning_rate  # the initial learning rate.
-        self.lam = scaling_constant  # a time scaling constant.
-        self.sigma0 = sigma  # the initial sigma.
-    
-    def train(self, data, iterations, title, uniform=0):
+        
+        self.eps = learning_rate   # initial learning speed
+        self.de = neighborhood_distance   # initial neighborhood distance
+        self.ste = 0    # inital number of carried out steps
+        
+    def phi(self, i, k, d):             # proximity function for line and circle
+        return np.exp(-(i-k)**2/(2*d**2)) # Gaussian
+
+    def phi2(self, ix, iy, kx, ky, d):  # proximity function for matrix
+        return np.exp(-((ix-kx)**2+(iy-ky)**2)/(d**2))  # Gaussian
+
+
+    def train(self, data, title, rounds=150, points=100, uniform=0):
         """
         Function to activate the Kohonen algorithm 
         :param data: the data to be trained on.
-        :param iterations: number of iterations.
         :param title: Title of the task.
+        :param rounds: number of rounds.
+        :param points: number of points in each round.
         :param uniform: if 0 preforms uniform distribution sampling of the data. if 1/2 than non-uniform.
         :return:
         """
-        iter_count = 0
-        lenData = len(data)
-        probability = self.getProbabilities(data, uniform)
-        
         if self.shape == "Line" or self.shape == "Circle": 
-            size = int(lenData/len(self.neurons)*2) + 1
-            radius = int(len(self.neurons)/2)
-            self.drow(data, title, chosenIndex=-1, bmuIndex=-1, border=self.border, circleShape=self.circleShape)
+            self.lineCircleTrain(data, title, rounds, points, uniform)
         else:
-            size = int(lenData/len(self.neurons[0])*2) + 1
-            radius = len(self.neurons[0]) + 1
-            self.drow(data, title, chosenIndex=-1, bmuIndex=Index(-1, -1))
+            self.matrixTrain(data, title, rounds, points, uniform)
 
-        while iter_count < iterations:
-            if radius>2 and iter_count != 0 and iter_count % size == 0:
-                radius -= 1
-
-            chosenIndex = self.getRandomIndex(probability, lenData, uniform)
-            bmuIndex = self.euclideanDist(data[chosenIndex])
-            self.moveNeurons(data[chosenIndex], bmuIndex, iter_count, radius)
-            
-            iter_count += 1
-            if iter_count % 500 == 0:
-                self.drow(data, title + " Iter: " + str(iter_count), chosenIndex=chosenIndex, bmuIndex=bmuIndex, border=self.border, circleShape=self.circleShape)
-
-        if self.shape == "Line" or self.shape == "Circle": 
-            self.drow(data, title, chosenIndex=-1, bmuIndex=-1, border=self.border, circleShape=self.circleShape, done=LAST_ITERATION)
-        else:
-            self.drow(data, title, chosenIndex=-1, bmuIndex=Index(-1, -1), done=LAST_ITERATION)
     
     def getRandomIndex(self, probabilities, lenData, uniform):
         """
@@ -171,35 +156,7 @@ class KohonenAlgorithm:
                             index = Index(i, j)
         
         return index
-
-    def updateConscience(self, index):
-        """
-        This function will reset the neurons conscience except for the closest neuron.
-        :param index: Index of the closest neuron.
-        :return: The updated neurons consciences.
-        """
-        if self.shape == "Line" or self.shape == "Circle": 
-            for i in range(len(self.neurons)):
-                if i != index:
-                    self.neurons[i].chosen = 0
-        else:
-            for i in range(len(self.neurons[0])):
-                for j in range(len(self.neurons[0])):
-                    if i != index.x and j != index.y:
-                        self.neurons[i][j].point.chosen = 0
-
-    def moveNeurons(self, input_vector, index, t, radius):
-        """
-        Given neurons with topology of a line / circle, moving the adjacent neurons using Gaussian Distribution.
-        :param input_vector: current data vector.
-        :param index: Index of the closest neuron.
-        :param t: Current time.
-        :param radius: Number of adjacent neighbours.
-        """
-        if self.shape == "Line" or self.shape == "Circle": 
-            self.moveNeuronAlgorithm(input_vector, index, t, radius)
-        else:
-            self.moveNeuronAlgorithmMatrix(input_vector, index, t, radius)
+    
 
     def drow(self, data, title, chosenIndex, bmuIndex, border=0, circleShape=0, done=0):
         """
@@ -218,111 +175,73 @@ class KohonenAlgorithm:
         else:
             drowPaintMatrix(data, self.neurons, title, chosenIndex, bmuIndex, done)
     # --------------------------------------------------------- Line / Circle ------------------------------------------------
-    def moveNeuronAlgorithm(self, input_vector, index, t, radius):
+    def lineCircleTrain(self, data, title, rounds=150, points=100, uniform=0):
         """
-        Given neurons with topology of a line / circle, moving the adjacent neurons using Gaussian Distribution.
-        :param input_vector: current data vector.
-        :param index: Index of the closest neuron.
-        :param t: Current time.
-        :param radius: Number of adjacent neighbours.
+        Function to activate the Kohonen algorithm 
+        :param data: the data to be trained on.
+        :param title: Title of the task.
+        :param rounds: number of rounds.
+        :param points: number of points in each round.
+        :param uniform: if 0 preforms uniform distribution sampling of the data. if 1/2 than non-uniform.
+        :return:
         """
+        lenData = len(data)
+        probability = self.getProbabilities(data, uniform)
         lenNeurons = len(self.neurons)
-        # The Best Matching Unit
-        # The node with the smallest Euclidean difference between the input vector and all nodes is chosen, 
-        # along with its neighbouring nodes within a certain radius, to have their position slightly adjusted to match the input vector.
-        self.neurons[index].x += (input_vector.x - self.neurons[index].x) / 2
-        self.neurons[index].y += (input_vector.y - self.neurons[index].y) / 2
-        self.neurons[index].chosen = 1
- 
-        for i in range(1, radius + 1):
-            i_right = index + i
-            i_left = index - i
-            # dist_to_bmu = np.linalg.norm((np.array((self.neurons[index].y, self.neurons[index].x)) - np.array((self.neurons[i].y, self.neurons[i].x))))
-            delta = 1 / (2 ** (i + 1)) # the initial sigma.
-        
-            if i_right < lenNeurons:
-                self.neurons[i_right].x += (input_vector.x - self.neurons[i_right].x) * delta * self.L(t)
-                self.neurons[i_right].y += (input_vector.y - self.neurons[i_right].y) * delta * self.L(t)
-                self.neurons[i_right].chosen = 1
-        
-            if i_left >= 0:
-                self.neurons[i_left].x += (input_vector.x - self.neurons[i_left].x) * delta * self.L(t)
-                self.neurons[i_left].y += (input_vector.y - self.neurons[i_left].y) * delta * self.L(t)
-                self.neurons[i_left].chosen = 1 
 
-        self.updateConscience(index)
+        for _ in range(rounds):       # rounds        
+            self.eps = self.eps*.98                   
+            self.de = self.de*.95                     
+            for _ in range(points):   # repeat for rep points  
+                self.ste = self.ste+1                 
+                chosenIndex = self.getRandomIndex(probability, lenData, uniform)
+                bmuIndex = self.euclideanDist(data[chosenIndex])
+
+                for index in range(lenNeurons):    
+                    self.neurons[index].x += self.eps*self.phi(bmuIndex, index, self.de)*(data[chosenIndex].x - self.neurons[index].x) 
+                    self.neurons[index].y += self.eps*self.phi(bmuIndex, index, self.de)*(data[chosenIndex].y - self.neurons[index].y)  
+
+                if  self.ste in LIST_PRINT:
+                    self.drow(data, title + " Iter: " + str(self.ste), chosenIndex=chosenIndex, bmuIndex=bmuIndex, border=self.border, circleShape=self.circleShape)
+
+        self.drow(data, title + " Iter: " + str(self.ste), chosenIndex=-1, bmuIndex=-1, border=self.border, circleShape=self.circleShape, done=LAST_ITERATION)
     # -------------------------------------------------------------- Matrix --------------------------------------------------
-    def moveNeuronAlgorithmMatrix(self, input_vector, index, t, radius):
+    def matrixTrain(self, data, title, rounds=100, points=300, uniform=0):
         """
-        Given neurons with topology of a 10x10, moving the adjacent neurons using Gaussian Distribution.
-        :param input_vector: current data vector.
-        :param index: Index of the closest neuron.
-        :param t: Current time.
-        :param radius: Number of adjacent neighbours.
+        Function to activate the Kohonen algorithm 
+        :param data: the data to be trained on.
+        :param title: Title of the task.
+        :param rounds: number of rounds.
+        :param points: number of points in each round.
+        :param uniform: if 0 preforms uniform distribution sampling of the data. if 1/2 than non-uniform.
+        :return:
         """
-        self.neurons[index.x][index.y].point.x += (input_vector.x - self.neurons[index.x][index.y].point.x) / 2
-        self.neurons[index.x][index.y].point.y += (input_vector.y - self.neurons[index.x][index.y].point.y) / 2
-        self.neurons[index.x][index.y].point.chosen = 1
+        lenData = len(data)
+        probability = self.getProbabilities(data, uniform)
+        rows = len(self.neurons)
+        cols = len(self.neurons[0])
 
-        counter = 0
-        queue1 = []
-        queue2 = []
+        for _ in range(rounds):   # rounds
+            self.eps = self.eps*.97      
+            self.de = self.de*.98         
+            for _ in range(points):    # repeat for rep points
+                self.ste = self.ste+1
+                chosenIndex = self.getRandomIndex(probability, lenData, uniform)
+                bmuIndex = self.euclideanDist(data[chosenIndex])
+                ind_i=bmuIndex.x
+                ind_j=bmuIndex.y    
+        
+                for j in range(rows): 
+                    for i in range(cols):
+                        self.neurons[i][j].point.x += self.eps*self.phi2(ind_i,ind_j,i,j,self.de)*(data[chosenIndex].x - self.neurons[i][j].point.x) 
+                        self.neurons[i][j].point.y += self.eps*self.phi2(ind_i,ind_j,i,j,self.de)*(data[chosenIndex].y - self.neurons[i][j].point.y)
+                
+                if  self.ste in LIST_PRINT:
+                    self.drow(data, title + " Iter: " + str(self.ste), chosenIndex=chosenIndex, bmuIndex=bmuIndex, border=self.border, circleShape=self.circleShape)
 
-        for i in range(len(self.neurons[index.x][index.y].adjacent)):
-            queue1.append(self.neurons[index.x][index.y].adjacent[i])
+        self.drow(data, title + " Iter: " + str(self.ste), chosenIndex=-1, bmuIndex=Index(-1, -1), done=LAST_ITERATION)
 
-        for i in range(1, radius + 1):
-            counter += 1
-            delta = 1 / (2 ** (i + 1)) # the initial sigma.
-
-
-            if counter % 2 == 1:
-                while len(queue1) > 0:
-                    locate = queue1.pop(0)
-                    node = self.neurons[locate.x][locate.y]
-                    if node.point.chosen == 0:
-                        self.neurons[locate.x][locate.y].point.x += (input_vector.x - node.point.x) * delta * self.L(t)
-                        self.neurons[locate.x][locate.y].point.y += (input_vector.y - node.point.y) * delta * self.L(t)
-                        self.neurons[locate.x][locate.y].point.chosen = 1
-                        for k in range(len(node.adjacent)):
-                            queue2.append(node.adjacent[k])
-
-            if counter % 2 == 0:
-                while len(queue2) > 0:
-                    locate = queue2.pop(0)
-                    node = self.neurons[locate.x][locate.y]
-                    if node.point.chosen == 0:
-                        self.neurons[locate.x][locate.y].point.x += (input_vector.x - node.point.x) * delta * self.L(t)
-                        self.neurons[locate.x][locate.y].point.y += (input_vector.y - node.point.y) * delta * self.L(t)
-                        self.neurons[locate.x][locate.y].point.chosen = 1
-                        for k in range(len(node.adjacent)):
-                            queue1.append(node.adjacent[k])
-
-        self.updateConscience(index)
-
-
-    def L(self, t):
-        """
-        Learning rate formula.
-        t: current time.
-        """
-        return self.L0 * np.exp(-t / self.lam)
-
-    def N(self, dist_to_bmu, t):
-        """
-        Computes the neighbouring penalty.
-        dist_to_bmu: L2 distance to bmu.
-        t: current time.
-        """
-        curr_sigma = self.sigma(t)
-        return np.exp(-(dist_to_bmu ** 2) / (2 * curr_sigma ** 2))
-
-    def sigma(self, t):
-        """
-        Neighbouring radius formula.
-        t: current time.
-        """
-        return self.sigma0 * np.exp(-t / self.lam)
+  
 
 # ------------------------------------------------------------ Circle -----------------------------------------------------------
 def generateCircle(radius1, radius2, set=DATA_SET):
@@ -476,8 +395,8 @@ def drowPaintMatrix(points, matrix, title, chosenIndex=-1, bmuIndex=Index(-1, -1
     :param done: Done = 0 -> draw the matrix and clear | Done = 1 -> last iteration, show the matrix.
     :return: None
     """
-    neurons_x = [[] for i in range(2 * len(matrix[0]))]
-    neurons_y = [[] for i in range(2 * len(matrix[0]))]
+    neurons_x = [[] for _ in range(2 * len(matrix[0]))]
+    neurons_y = [[] for _ in range(2 * len(matrix[0]))]
     
     for i in range(len(points)):
         if done == 0 and chosenIndex == i:
@@ -586,50 +505,44 @@ def main():
     # create points
     points = generateSquare(set=500, lowerBound=lowerBound, upperBound=upperBound)
     
-    # 2500 iterations
-    somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Line", border=0, circleShape=0)
-    iterations = 2500
-    somSquare.train(points, iterations, "Line Topology - Uniform Data", uniform=0)
+    # 20000 iterations
+    somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, neighborhood_distance=10, shape="Line", border=0, circleShape=0)
+    somSquare.train(points, "Line Topology - Uniform Data", rounds=150, points=100, uniform=0)
     
     # ------------------------------------------------------- 10x10 Topology -------------------------------------------------------
-    # 2500 iterations
+    # 30000 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Matrix")
-    iterations = 2500
-    somSquare.train(points, iterations, "10x10 Topology - Uniform Data", uniform=0)
+    somSquare.train(points, "10x10 Topology - Uniform Data", rounds=100, points=300, uniform=0)
 
     # Part A.2
     # ------------------------------------------------------ Non-uniform Dat -------------------------------------------------------
     # ------------------------------------------------------- Line Topology --------------------------------------------------------
     points = generateSquare(set=500, lowerBound=lowerBound, upperBound=upperBound)
     
-    # 2500 iterations
+    # 20000 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Line", border=0, circleShape=0)
-    iterations = 2500
-    somSquare.train(points, iterations, "Line Topology - Non-uniform Data (type 1)", uniform=1)
+    somSquare.train(points, "Line Topology - Non-uniform Data (type 1)", rounds=150, points=100, uniform=1)
 
-    # 2500 iterations
+    # 20000 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Line", border=0, circleShape=0)
-    iterations = 2500
-    somSquare.train(points, iterations, "Line Topology - Non-uniform Data (type 2)", uniform=2)
+    somSquare.train(points, "Line Topology - Non-uniform Data (type 2)", rounds=150, points=100, uniform=2)
     
     # ------------------------------------------------------- 10x10 Topology -------------------------------------------------------
-    # 2500 iterations
+    # 30000 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Matrix")
-    iterations = 2500
-    somSquare.train(points, iterations, "10x10 Topology - Non-uniform (type 1)", uniform=1)
+    somSquare.train(points, "10x10 Topology - Non-uniform (type 1)", rounds=100, points=300, uniform=1)
 
-    # 2500 iterations
+    # 30000 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Matrix")
-    iterations = 2500
-    somSquare.train(points, iterations, "10x10 Topology - Non-uniform (type 2)", uniform=2)
+    somSquare.train(points, "10x10 Topology - Non-uniform (type 2)", rounds=100, points=300, uniform=2)
+
     # Part A.3
     # ------------------------------------------------------- Circle Topology ------------------------------------------------------
     points = generateCircle(math.sqrt(LOWER_RADIUS), math.sqrt(UPPER_RADIUS), set=DATA_SET)
     
-    # 2500 iterations
+    # 20000 iterations
     somSquare = KohonenAlgorithm(set=NEURONS_SMALL_SET, lowerBound=lowerBound, upperBound=upperBound, shape="Circle", border=1, circleShape=1)
-    iterations = 2500
-    somSquare.train(points, iterations, "Circle Topology - Uniform Data", uniform=0)
+    somSquare.train(points, "Circle Topology - Uniform Data", rounds=150, points=100, uniform=0)
 
 
 if __name__ == '__main__':
